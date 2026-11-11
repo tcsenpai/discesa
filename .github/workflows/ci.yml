@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Bot plays every tunnel
+        run: bun test/bot.js
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to publish releases
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK packages
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-33" "build-tools;33.0.0" > /dev/null
+      - name: Build APK
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = tag ]; then export VERSION="${GITHUB_REF_NAME#v}"; else export VERSION="0.0.${GITHUB_RUN_NUMBER}"; fi
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/release.keystore
+            export KEYSTORE=release.keystore KEY_ALIAS=discesa
+          elif [ "${GITHUB_REF_TYPE}" = tag ]; then
+            echo "::error::release builds need the KEYSTORE_B64 and KEYSTORE_PASS secrets"; exit 1
+          fi
+          android/build.sh
+          mv android/discesa.apk "android/discesa-${VERSION}.apk"
+          rm -f android/release.keystore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: discesa-apk
+          path: android/discesa-*.apk
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(ls android/discesa-*.apk)
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 \
+            && gh release upload "$GITHUB_REF_NAME" "$APK" --clobber \
+            || gh release create "$GITHUB_REF_NAME" "$APK" --title "Discesa $GITHUB_REF_NAME" --generate-notes
+
+  pages:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect the playable site
+        run: mkdir site && cp -R index.html vendor site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

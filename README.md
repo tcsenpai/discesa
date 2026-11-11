@@ -1,13 +1,24 @@
 # Discesa
 
+[![CI](https://github.com/tcsenpai/discesa/actions/workflows/ci.yml/badge.svg)](https://github.com/tcsenpai/discesa/actions/workflows/ci.yml)
+
 Third-person 3D runner: a blue orb fired into five hyperspace tunnels.
 Steer along the tube wall, jump, dodge everything with a mean glow.
-Die, restart instantly.
+Die, restart instantly. A sixth tunnel is built from your own music.
 
-The whole game lives in `index.html`, with three.js and the font vendored in `vendor/`:
-no build, no install, works offline.
+**[Play in the browser](https://tcsenpai.github.io/discesa/)** ·
+**[Download the Android APK](https://github.com/tcsenpai/discesa/releases/latest)**
 
-## Run
+![Main menu](docs/menu.jpg)
+
+| | |
+|---|---|
+| ![Ultraviolet](docs/ultraviolet.jpg) | ![Abyssal Trench](docs/trench.jpg) |
+
+The whole game is one `index.html`, with three.js and the font vendored in `vendor/`:
+no build step, no install, works offline. Desktop, phone, tablet and controller.
+
+## Run locally
 
 ```sh
 bun start          # serves the folder on http://localhost:3000
@@ -18,21 +29,28 @@ directly via `file://` usually works too, but some browsers restrict audio and g
 
 ## Android
 
+Grab `discesa-x.y.z.apk` from the [latest release](https://github.com/tcsenpai/discesa/releases/latest)
+and install it (allow installs from unknown sources). Android 7.0 or newer.
+
+The APK is a fullscreen WebView that loads the game from its own assets, so it needs no
+network (only the YouTube option of "Your track" goes online). The back button pauses
+during a run, goes back to the menu from pause, and closes the app from the menu.
+
+To build it yourself:
+
 ```sh
 bun run android    # builds android/discesa.apk
 adb install -r android/discesa.apk
 ```
 
-The APK is a fullscreen WebView that loads the game from its own assets, so it needs no
-network. The build uses the SDK tools directly (aapt2, javac, d8, apksigner), no Gradle.
+The build uses the SDK tools directly (aapt2, javac, d8, apksigner), no Gradle.
 Requirements: Android SDK with platform 33 and build-tools 33.0.0 (`ANDROID_HOME`,
 default `~/Android/Sdk`) and a JDK 11+ (`JAVA_HOME`, or mise's `java@temurin-17`).
-It is signed with a local debug key (`android/debug.keystore`, created on first build).
-
-The Android back button pauses during a run, goes back to the menu from pause, and
-closes the app from the menu.
+Local builds are signed with a debug key (`android/debug.keystore`, created on first build).
 
 ## Your track (level 6)
+
+![Your track screen](docs/track.jpg)
 
 Always unlocked. Select it and press **Pick a track** (or click the row again to change
 track later). Two sources:
@@ -53,7 +71,8 @@ track later). Two sources:
 | Touch | drag | short tap, swipe up, second finger | top button | from the pause menu |
 | Controller | left stick or d-pad | A, X, RB, RT | Start | Select |
 
-Holding jump bounces on every landing.
+Holding jump bounces on every landing. In menus, a controller moves the highlight with the
+d-pad or stick, presses with A, and goes back with B.
 
 ## How it's built
 
@@ -91,6 +110,20 @@ bun test           # or: node test/bot.js
 A bot plays all five tunnels with the game's own physics and fails if a level cannot be
 completed. Rerun after any change to generation or physics. It does not cover
 rendering, audio or input.
+
+## Releases
+
+CI (`.github/workflows/ci.yml`) runs the bot on every push and pull request, builds the
+APK as a workflow artifact, and deploys the web version to GitHub Pages from `main`.
+Pushing a `v*` tag publishes a GitHub release with the signed APK:
+
+```sh
+git tag v1.1.0 && git push origin v1.1.0
+```
+
+Release APKs are signed with the key in the `KEYSTORE_B64` (base64 of the keystore,
+alias `discesa`) and `KEYSTORE_PASS` repository secrets. Android only installs an update
+over an existing install when the key matches, so keep that keystore backed up.
 
 ## Known limits
 

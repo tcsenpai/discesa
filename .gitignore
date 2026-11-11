@@ -3,4 +3,5 @@ node_modules/
 *.log
 android/build/
 android/discesa.apk*
-android/debug.keystore
+android/*.keystore
+android/release.env
