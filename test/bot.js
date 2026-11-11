@@ -9,7 +9,7 @@ const {genLevel,newState,step,LEVELS,obsU}=api;
 function run(idx,verbose){
   const L=genLevel(idx), st=newState(L), dt=1/120; let lane=0;
   const inp={steer:0,target:0,jump:false};
-  for(let n=0;n<120*200;n++){
+  for(let n=0;n<120*400;n++){
     const v=st.v, look=v*0.8;
     const near=L.obs.filter(o=>o.s+o.d/2>st.s-0.5&&o.s-o.d/2<st.s+look);
     const hi=near.filter(o=>o.type==='laser'&&o.base>1.2);
@@ -40,5 +40,13 @@ function run(idx,verbose){
 let failed=0;
 for(let i=0;i<LEVELS.length;i++){ const r=run(i,true);
   console.log((r.ok?'ok   ':'FAIL ')+(i+1)+' '+LEVELS[i].name+(r.ok?' — cleared in '+r.t.toFixed(1)+'s':' — died at '+(r.s/r.L.len*100).toFixed(0)+'%'));
+  if(!r.ok)failed++; }
+// custom track: the same level config the game derives from a song (seed, speed, length, beat grid)
+const C=LEVELS[LEVELS.length-1];
+for(const [seed,bpm,dur] of [[11,72,95],[2024,96,180],[777,128,240],[31337,150,200],[4242,174,300],[99,200,120]]){
+  C.seed=seed; C.speed=Math.round(Math.min(32,Math.max(22,22+(bpm-110)*.2))); C.len=Math.round(Math.min(6000,Math.max(400,dur*C.speed*1.08)));
+  C.beatS=C.speed*60/bpm; while(C.beatS<10)C.beatS*=2;
+  const r=run(LEVELS.length-1,true);
+  console.log((r.ok?"ok   ":"FAIL ")+"track "+bpm+" BPM, "+dur+"s"+(r.ok?" — cleared in "+r.t.toFixed(1)+"s":" — died at "+(r.s/r.L.len*100).toFixed(0)+"%"));
   if(!r.ok)failed++; }
 process.exit(failed?1:0);

@@ -79,6 +79,13 @@ h1{font-style:italic;font-weight:800;font-size:clamp(64px,min(17vh,23vw),168px);
 .ghost{font-size:24px;font-weight:600;padding:6px 0;color:var(--dim);border-bottom:1px solid var(--line)}
 .ghost:hover{color:var(--paper)}
 #err{position:fixed;inset:0;display:none;place-items:center;padding:30px;text-align:center;font-size:22px;background:var(--ink)}
+#custom .box{width:min(440px,100%)}
+.fields{width:100%;flex-wrap:nowrap}
+.field{font:inherit;font-size:19px;font-weight:500;color:var(--paper);background:rgba(238,243,255,.08);border:1px solid var(--line);
+  padding:7px 10px;min-width:0;flex:1 1 auto;-webkit-user-select:text;user-select:text}
+.field.bpm{flex:0 0 78px}
+#yt{position:fixed;left:calc(var(--sl) + 12px);bottom:calc(var(--sb) + 12px);width:200px;height:200px;display:none;z-index:2;border:1px solid var(--line)}
+#yt.on{display:block}
 @media (max-width:640px), (max-height:520px){
   #menu{background:linear-gradient(0deg,rgba(4,6,13,.94) 0,rgba(4,6,13,.7) 55%,rgba(4,6,13,.1) 100%)}
   .screen{padding:calc(var(--st) + 18px) calc(var(--sr) + 20px) calc(var(--sb) + 20px) calc(var(--sl) + 20px)}
@@ -142,6 +149,23 @@ h1{font-style:italic;font-weight:800;font-size:clamp(64px,min(17vh,23vw),168px);
   </div>
 </div>
 
+<div id="custom" class="screen sheet">
+  <div class="box">
+    <h2>Your track</h2>
+    <p id="trkInfo">A tunnel built from your own music: pick an audio file, or paste a YouTube link.</p>
+    <button id="btnFile" class="ghost">Pick an audio file</button>
+    <input id="fileIn" type="file" accept="audio/*" hidden>
+    <div class="row fields">
+      <input id="ytIn" class="field" type="url" placeholder="YouTube link" aria-label="YouTube link" autocomplete="off">
+      <input id="bpmIn" class="field bpm" type="number" min="60" max="200" value="128" aria-label="BPM" title="BPM">
+    </div>
+    <button id="btnYt" class="ghost">Load the YouTube video</button>
+    <button id="btnTrkPlay" class="cta" disabled><span>Play</span></button>
+    <button id="btnTrkBack" class="ghost">Back to menu</button>
+  </div>
+</div>
+<div id="yt"></div>
+
 <div id="err"></div>
 
 <script src="vendor/three.min.js"></script>
@@ -177,7 +201,12 @@ const LEVELS=[
  {name:'Singularity', seed:59, len:2000, speed:34, react:[.66,.98], hard:.8, slal:.45, dropP:.16, steep:.32, curve:13, tunnels:3,
   pats:{spikeLane:2,spikeFull:3,wall:2,gap:3,slalom:3,pad:3,laser:2,mover:3,corridor:2,curtain:3},
   theme:{top:0x000000,hor:0x12121a,sun:0xaeb8d8,neb:0x34344a,fog:0x050508,rail:0xdfe6ff,hazard:0xff1744,grid:0x6f7aa8,key:0xdfe6ff,ring:1,railK:.62},
-  music:{bpm:146,root:41}}
+  music:{bpm:146,root:41}},
+ // custom track: seed, speed, len and beatS are overwritten at runtime from the chosen music
+ {name:'Your track', custom:true, seed:77, len:1400, speed:27, react:[.9,1.3], hard:.4, slal:.54, dropP:.14, steep:.27, curve:10, tunnels:2,
+  pats:{spikeLane:2,spikeFull:3,wall:2,gap:3,slalom:2,pad:3,laser:2,mover:2,corridor:2,curtain:2},
+  theme:{top:0x07000c,hor:0x520840,sun:0xff9ad5,neb:0xc4227e,fog:0x1c0416,rail:0xff5cc8,hazard:0x2effd0,grid:0xff3da8,key:0xffd6f0,ring:0},
+  music:{bpm:128,root:43}}
 ];
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const clamp=(x,a,b)=>x<a?a:x>b?b:x, lerp=(a,b,t)=>a+(b-a)*t;
@@ -221,6 +250,7 @@ function genLevel(idx){
   let p=78, last='';
   while(p<len-70){
     p=Math.round(p);
+    if(cfg.beatS)p=Math.round(Math.ceil(p/cfg.beatS)*cfg.beatS); // custom track: patterns start on the beat grid
     const c0=inClear(p-4,p+8); if(c0){p=c0[1]+6;continue;}
     const v=spd(p), tun=inTun(p)||inTun(p+40);
     const concave=slope[Math.min(N,p+24)]-slope[p];
@@ -322,11 +352,11 @@ const save=(()=>{ const d={best:[0,0,0,0,0],done:[0,0,0,0,0],att:[0,0,0,0,0],mut
   d.last=clamp(d.last|0,0,LEVELS.length-1);
   return d; })();
 function persist(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(save)); }catch(e){} }
-const unlocked=i=>i===0||!!save.done[i-1];
+const unlocked=i=>i===0||!!LEVELS[i].custom||!!save.done[i-1];
 
 // ───────────────────────── Audio: soundtrack synthesised live ─────────────────────────
 const Sound=(()=>{
-  let ctx=null, an=null, anBuf=null, beats=[], fakeT=0, master, music, mfilt, sfx, dly, noiseBuf, stepN=0, nextT=0, cfg=LEVELS[0].music, full=false, timer=null;
+  let ext=null, ctx=null, an=null, anBuf=null, beats=[], fakeT=0, master, music, mfilt, sfx, dly, noiseBuf, stepN=0, nextT=0, cfg=LEVELS[0].music, full=false, timer=null;
   const f=m=>440*Math.pow(2,(m-69)/12);
   function unlock(){
     if(ctx){ if(ctx.state==='suspended')ctx.resume(); return; }
@@ -374,15 +404,16 @@ const Sound=(()=>{
     if(s%4!==0) osc('sawtooth',f(root-12),t,sd*.85,.26,music,{lp:520,lpTo:140,q:5});
     if(sect>=8){ const mel=[7,-1,-1,12,-1,-1,10,-1,7,-1,-1,q3,-1,-1,7,-1][s]; if(mel>=0) osc('sawtooth',f(root+24+mel),t,sd*2.4,.05,dly,{lp:3200,lpTo:1200,det:6}); }
   }
-  function tick(){ if(!ctx||ctx.state!=='running')return; if(nextT<ctx.currentTime)nextT=ctx.currentTime+.03;
+  function tick(){ if(!ctx||ctx.state!=='running'||ext)return; if(nextT<ctx.currentTime)nextT=ctx.currentTime+.03;
     while(nextT<ctx.currentTime+.14){ schedule(stepN,nextT); nextT+=60/cfg.bpm/4; stepN++; } }
   return {
     unlock,
-    pulse(dt){ if(ctx&&ctx.state==='running'){ let hit=false; while(beats.length&&beats[0]<=ctx.currentTime){ beats.shift(); hit=true; } return hit; }
+    pulse(dt){ if(ext)return ext.pulse(); if(ctx&&ctx.state==='running'){ let hit=false; while(beats.length&&beats[0]<=ctx.currentTime){ beats.shift(); hit=true; } return hit; }
       fakeT+=dt; if(fakeT>60/cfg.bpm){ fakeT=0; return full; } return false; },
-    spectrum(out){ const n=out.length; if(!an||ctx.state!=='running'){ for(let i=0;i<n;i++)out[i]=out[i]*.9; return; }
+    spectrum(out){ if(ext&&ext.fake(out))return; const n=out.length; if(!an||ctx.state!=='running'){ for(let i=0;i<n;i++)out[i]=out[i]*.9; return; }
       an.getByteFrequencyData(anBuf); for(let i=0;i<n;i++){ const a=Math.floor(Math.pow(i/n,1.7)*92), b=Math.max(a+1,Math.floor(Math.pow((i+1)/n,1.7)*92)); let m=0; for(let k=a;k<b;k++)if(anBuf[k]>m)m=anBuf[k]; out[i]=m; } },
-    setLevel(i){ cfg=LEVELS[i].music; },
+    setLevel(i){ cfg=LEVELS[i].music; ext=LEVELS[i].custom&&Track.ready()?Track.ext:null; },
+    ctx:()=>ctx, input:()=>music,
     setFull(v){ full=v; if(ctx){ if(v)stepN=(stepN+15)&~15; this.open(v?1:0); } },
     open(k){ if(ctx) mfilt.frequency.setTargetAtTime(k>=1?19000:k>0?260:750,ctx.currentTime,.09); },
     mute(m){ if(ctx) master.gain.setTargetAtTime(m?0:.85,ctx.currentTime,.03); },
@@ -396,6 +427,59 @@ const Sound=(()=>{
       else if(name==='win'){ [0,4,7,12,16,19,24].forEach((m,i)=>osc('triangle',f(69+m),t+i*.085,.5,.2,sfx)); }
       else if(name==='ui') osc('sine',660,t,.06,.12,sfx,{to:880});
     }
+  };
+})();
+
+// ───────────────────────── Custom track: an audio file (analysed) or a YouTube video (embedded player) ─────────────────────────
+const Track=(()=>{
+  let kind=null, buf=null, src=null, t0=0, off=0, playing=false, bpm=120, phase=0, lastBeat=-1, yt=null, apiP=null;
+  const host=$('yt');
+  function now(){ if(kind==='file'){ const c=Sound.ctx(); return playing?c.currentTime-t0:off; } return yt&&yt.getCurrentTime?yt.getCurrentTime()||0:0; }
+  function stopSrc(){ if(src){ try{ src.stop(); }catch(e){} src.disconnect(); src=null; } }
+  function start(o){ const c=Sound.ctx(); stopSrc(); src=c.createBufferSource(); src.buffer=buf; src.connect(Sound.input()); src.start(0,o); t0=c.currentTime-o; }
+  function drop(){ stopSrc(); if(yt){ try{ yt.destroy(); }catch(e){} yt=null; } host.textContent=''; host.classList.remove('on'); kind=null; buf=null; playing=false; }
+  // tempo from the low-band onset envelope: autocorrelation over 70-180 BPM, then the best beat phase
+  function analyse(ab){
+    const d=ab.getChannelData(0), hop=512, n=Math.floor(d.length/hop), fps=ab.sampleRate/hop, e=new Float32Array(n), fl=new Float32Array(n); let lp=0;
+    for(let i=0;i<n;i++){ let s=0; for(let k=i*hop,end=k+hop;k<end;k++){ lp+=(d[k]-lp)*.05; s+=lp*lp; } e[i]=Math.sqrt(s/hop); }
+    for(let i=1;i<n;i++)fl[i]=Math.max(0,e[i]-e[i-1]);
+    let best=-1, b0=120;
+    const ac=b=>{ const lag=fps*60/b; let s=0; for(let i=0;i+lag+1<n;i++){ const j=i+lag, j0=j|0; s+=fl[i]*(fl[j0]+(fl[j0+1]-fl[j0])*(j-j0)); } return s; };
+    for(let b=70;b<=180;b++){ const s=ac(b); if(s>best){ best=s; b0=b; } }
+    if(b0<90)b0*=2;
+    // fine pass: a comb across the whole song pins tempo and phase (an integer BPM drifts a beat every minute or two)
+    let pb=-1, ph=0, bb=b0;
+    for(let b=b0-1.5;b<=b0+1.5;b+=.05){ const lag=fps*60/b;
+      for(let p=0;p<lag;p++){ let s=0; for(let x=p;x<n-1;x+=lag)s+=Math.max(fl[x|0],fl[(x|0)+1]); if(s>pb){ pb=s; ph=p; bb=b; } } }
+    b0=Math.round(bb*10)/10;
+    return {bpm:b0, phase:ph/fps};
+  }
+  function api(){ return apiP||(apiP=new Promise((res,rej)=>{ if(window.YT&&YT.Player)return res(); window.onYouTubeIframeAPIReady=res;
+    const s=document.createElement('script'); s.src='https://www.youtube.com/iframe_api'; s.onerror=()=>{ apiP=null; rej(new Error('offline')); }; document.head.append(s); })); }
+  return {
+    ext:{
+      pulse(){ if(!playing)return false; const t=now()-phase; if(t<0)return false; const b=Math.floor(t*bpm/60); if(b===lastBeat)return false; const hit=lastBeat>=0; lastBeat=b; return hit; },
+      // YouTube audio can't be analysed (cross-origin): fake a spectrum that kicks on the beat
+      fake(out){ if(kind!=='yt')return false; const ph=playing?((now()-phase)*bpm/60)%1:1;
+        for(let i=0;i<out.length;i++)out[i]=Math.max(out[i]*.85,(1-ph)*230*Math.exp(-i/9)); return true; }
+    },
+    ready:()=>kind==='file'?!!buf:kind==='yt'?!!yt:false,
+    async loadFile(f){ Sound.unlock(); const c=Sound.ctx(); if(!c)throw new Error('no audio');
+      const ab=await c.decodeAudioData(await f.arrayBuffer()); const a=analyse(ab);
+      drop(); kind='file'; buf=ab; bpm=a.bpm; phase=a.phase;
+      return {dur:ab.duration, bpm, seed:f.name+'|'+Math.round(ab.duration), name:f.name.replace(/\.[^.]+$/,'')}; },
+    async loadYt(id,b){ await api(); drop();
+      return new Promise((res,rej)=>{ const el=document.createElement('div'); host.append(el);
+        const pv={playsinline:1,controls:0,rel:0,disablekb:1,fs:0}; if(location.origin.startsWith('http'))pv.origin=location.origin;
+        const p=new YT.Player(el,{width:200,height:200,videoId:id,playerVars:pv,events:{
+          onReady:()=>{ let n=0; const w=()=>{ const d=p.getDuration(); if(d>0||n++>15){ yt=p; kind='yt'; bpm=b; phase=0;
+              const t=p.getVideoData&&p.getVideoData().title; res({dur:d||200, bpm:b, seed:id, name:t||id}); } else setTimeout(w,200); }; w(); },
+          onError:e=>{ if(!yt){ drop(); rej(new Error('yt'+e.data)); } } }}); }); },
+    restart(){ lastBeat=-1; playing=true; off=0;
+      if(kind==='file')start(0); else if(kind==='yt'){ host.classList.add('on'); yt.seekTo(0,true); yt.playVideo(); } },
+    pause(){ if(!playing)return; off=now(); playing=false; if(kind==='file')stopSrc(); else if(yt)yt.pauseVideo(); },
+    resume(){ if(playing||!kind)return; playing=true; if(kind==='file')start(off); else if(yt)yt.playVideo(); },
+    stop(hide){ playing=false; off=0; stopSrc(); if(yt){ yt.pauseVideo(); if(hide)host.classList.remove('on'); } }
   };
 })();
 
@@ -769,10 +853,11 @@ let perfN=0, perfSum=0, perfDone=false;
 
 const hud=$('hud'), barFill=$('barFill'), pctEl=$('pct'), toastEl=$('toast'); let lastPct=-1, toastTimer=0;
 function toast(msg,ms){ toastEl.textContent=msg; toastEl.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('on'),ms||2600); }
-function show(id){ for(const s of ['menu','pause','win'])$(s).classList.toggle('on',s===id); hud.classList.toggle('on',id!=='menu'); }
+function show(id){ for(const s of ['menu','pause','win','custom'])$(s).classList.toggle('on',s===id); hud.classList.toggle('on',id!=='menu'&&id!=='custom'); }
 function setPct(p){ if(p===lastPct)return; lastPct=p; pctEl.firstChild.nodeValue=p; barFill.style.width=p+'%'; }
 
 function startLevel(i){
+  if(LEVELS[i].custom&&!Track.ready()){ openCustom(); return; }
   if(curIdx!==i)buildLevel(i);
   save.last=i; $('hudName').textContent=LEVELS[i].name; show(null); Sound.setFull(true); perfN=0; perfSum=0;
   newAttempt();
@@ -781,10 +866,10 @@ function startLevel(i){
 function newAttempt(){
   st=newState(L); ballWorld(); save.att[L.idx]++; persist(); $('hudAtt').textContent='Attempt '+save.att[L.idx];
   mode='play'; ballGroup.visible=true; trail.visible=true; trailReset(); camSnap=true; if(!reduceMotion){ fov=camera.fov=106; camera.updateProjectionMatrix(); flash=Math.max(flash,.3); } jumpBuf=0; inp.target=null; steerId=null; setPct(0);
-  for(const m of shards)m.visible=false; ball.quaternion.identity(); Sound.open(1);
+  for(const m of shards)m.visible=false; ball.quaternion.identity(); Sound.open(1); if(L.cfg.custom)Track.restart();
 }
 function die(){
-  rumble(260,.9,.6); mode='dead'; deadT=.9; ballGroup.visible=false; trail.visible=false; Sound.fx('die'); Sound.open(.5); if(!reduceMotion){ shake=.9; flash=.55; }
+  Track.stop(false); rumble(260,.9,.6); mode='dead'; deadT=.9; ballGroup.visible=false; trail.visible=false; Sound.fx('die'); Sound.open(.5); if(!reduceMotion){ shake=.9; flash=.55; }
   const p=Math.min(99,Math.floor(st.s/L.len*100));
   if(p>save.best[L.idx]){ save.best[L.idx]=p; persist(); if(p>=5)toast('New best: '+p+'%',1500); }
   burst(bpos.x,bpos.y,bpos.z,110,13,st.v*.45,.35,.7,2.2,1.1); burst(bpos.x,bpos.y,bpos.z,40,6,st.v*.3,2,2,2.4,.6);
@@ -793,14 +878,14 @@ function die(){
 function win(){
   mode='win'; winT=0; const first=!save.done[L.idx]; save.done[L.idx]=1; save.best[L.idx]=100; persist(); setPct(100);
   Sound.fx('win'); flash=.9; inp.target=null;
-  const n=save.att[L.idx], last=L.idx===LEVELS.length-1;
-  $('winText').innerHTML='<b>'+LEVELS[L.idx].name+'</b> cleared on attempt '+n+'.'+(last?' That was the last one: you have seen the bottom.':(first?' The next tunnel is unlocked.':''));
-  $('btnNext').style.display=last?'none':'';
-  setTimeout(()=>{ if(mode==='win'){ show('win'); $(last?'btnAgain':'btnNext').focus(); } },1700);
+  const n=save.att[L.idx], custom=!!L.cfg.custom, last=L.idx===LEVELS.length-2;
+  $('winText').innerHTML='<b>'+LEVELS[L.idx].name+'</b> cleared on attempt '+n+'.'+(custom?'':last?' That was the last one: you have seen the bottom.':(first?' The next tunnel is unlocked.':''));
+  $('btnNext').style.display=last||custom?'none':'';
+  setTimeout(()=>{ if(mode==='win'){ show('win'); $(last||custom?'btnAgain':'btnNext').focus(); } },1700);
 }
-function toMenu(){ mode='menu'; show('menu'); Sound.setFull(false); ballGroup.visible=false; trail.visible=false; for(const m of shards)m.visible=false; menuS=0; renderMenu(); $('btnPlay').focus(); }
-function pause(){ if(mode!=='play')return; mode='pause'; show('pause'); Sound.open(0); $('btnResume').focus(); }
-function resume(){ if(mode!=='pause')return; mode='play'; show(null); Sound.open(1); last=performance.now(); }
+function toMenu(){ Track.stop(true); mode='menu'; show('menu'); Sound.setFull(false); ballGroup.visible=false; trail.visible=false; for(const m of shards)m.visible=false; menuS=0; renderMenu(); $('btnPlay').focus(); }
+function pause(){ if(mode!=='play')return; mode='pause'; Track.pause(); show('pause'); Sound.open(0); $('btnResume').focus(); }
+function resume(){ if(mode!=='pause')return; mode='play'; Track.resume(); show(null); Sound.open(1); last=performance.now(); }
 
 // ───────────────────────── Menu UI ─────────────────────────
 function renderMenu(){
@@ -809,10 +894,10 @@ function renderMenu(){
     b.className=ok?'':'locked'; if(i===sel)b.setAttribute('aria-current','true');
     const n=document.createElement('span'); n.className='n'; n.textContent=i+1;
     const t=document.createElement('span'); t.textContent=lv.name;
-    const r=document.createElement('span'); r.className='b'; r.textContent=!ok?'locked':save.done[i]?'cleared':save.best[i]?save.best[i]+'%':'';
-    b.append(n,t,r); b.addEventListener('click',()=>{ Sound.unlock(); Sound.fx('ui'); select(i); }); li.append(b); ol.append(li); });
+    const r=document.createElement('span'); r.className='b'; r.textContent=lv.custom&&!Track.ready()?'your music':!ok?'locked':save.done[i]?'cleared':save.best[i]?save.best[i]+'%':'';
+    b.append(n,t,r); b.addEventListener('click',()=>{ Sound.unlock(); Sound.fx('ui'); if(lv.custom&&sel===i)openCustom(); else select(i); }); li.append(b); ol.append(li); });
   const ok=unlocked(sel), bp=$('btnPlay'); bp.disabled=!ok;
-  bp.firstElementChild.textContent=ok?'Play':'Clear tunnel '+sel+' first';
+  bp.firstElementChild.textContent=ok?(LEVELS[sel].custom&&!Track.ready()?'Pick a track':'Play'):'Clear tunnel '+sel+' first';
   $('optSound').innerHTML='Sound <b>'+(save.mute?'off':'on')+'</b>';
   $('optQ').innerHTML='Graphics <b>'+({high:'high',med:'medium',low:'low'})[save.q]+'</b>';
 }
@@ -828,8 +913,41 @@ $('btnMenu').addEventListener('click',toMenu);
 $('btnAgain').addEventListener('click',()=>startLevel(L.idx));
 $('btnNext').addEventListener('click',()=>{ sel=Math.min(LEVELS.length-1,L.idx+1); startLevel(sel); });
 
+// ───────────────────────── Custom track UI ─────────────────────────
+const CI=LEVELS.length-1;
+function strHash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0)%100000+1; }
+const fmtT=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+function openCustom(){ show('custom'); $('btnTrkPlay').disabled=!Track.ready(); (Track.ready()?$('btnTrkPlay'):$('btnFile')).focus(); }
+function trkLoaded(r){
+  const C=LEVELS[CI], bpm=r.bpm;
+  C.seed=strHash(r.seed); C.speed=Math.round(clamp(22+(bpm-110)*.2,22,32));
+  // the tunnel lasts as long as the song; very long songs are cut so the level stays buildable
+  C.len=Math.round(clamp(r.dur*C.speed*1.08,400,6000)); C.beatS=C.speed*60/bpm; while(C.beatS<10)C.beatS*=2;
+  save.best[CI]=0; save.done[CI]=0; save.att[CI]=0; persist();
+  curIdx=-1; sel=CI; buildLevel(CI); menuS=0; renderMenu(); show('custom');
+  $('trkInfo').textContent=r.name+' · '+bpm+' BPM · '+fmtT(r.dur)+(r.dur*C.speed*1.08>6000?' (tunnel ends before the song)':'');
+  $('btnTrkPlay').disabled=false; $('btnTrkPlay').focus();
+}
+function trkFail(msg){ $('trkInfo').textContent=msg; $('btnTrkPlay').disabled=!Track.ready(); }
+$('btnFile').addEventListener('click',()=>{ Sound.unlock(); $('fileIn').click(); });
+$('fileIn').addEventListener('change',async()=>{ const f=$('fileIn').files[0]; $('fileIn').value=''; if(!f)return;
+  $('trkInfo').textContent='Analysing '+f.name+'…'; $('btnTrkPlay').disabled=true;
+  try{ trkLoaded(await Track.loadFile(f)); }catch(e){ trkFail('Could not read that file. Try an MP3, M4A, OGG or WAV.'); } });
+$('btnYt').addEventListener('click',async()=>{ Sound.unlock();
+  const m=$('ytIn').value.trim().match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/|^)([\w-]{11})(?:[?&#/]|$)/);
+  if(!m){ trkFail('That does not look like a YouTube link.'); return; }
+  const bpm=clamp(Math.round(+$('bpmIn').value)||128,60,200); $('bpmIn').value=bpm;
+  $('trkInfo').textContent='Loading the video…'; $('btnTrkPlay').disabled=true;
+  try{ trkLoaded(await Track.loadYt(m[1],bpm)); }
+  catch(e){ trkFail(e.message==='offline'?'YouTube is unreachable. Check your connection.':
+    e.message==='yt101'||e.message==='yt150'?'The owner does not allow this video to be embedded. Try another one.':
+    'YouTube refused to play this video here. Try another one, or an audio file.'); } });
+$('btnTrkPlay').addEventListener('click',()=>{ if(Track.ready()){ Sound.fx('ui'); startLevel(CI); } });
+$('btnTrkBack').addEventListener('click',toMenu);
+
 // ───────────────────────── Input ─────────────────────────
 window.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
   Sound.unlock(); const k=e.code;
   if(k==='ArrowLeft'||k==='KeyA')keyL=true; else if(k==='ArrowRight'||k==='KeyD')keyR=true;
   if(mode==='play'||mode==='dead'){
@@ -990,7 +1108,7 @@ function pollPad(){
   if(mode==='play'){ if(jHit)jumpBuf=.16; if(hit(9))pause(); else if(hit(8))newAttempt(); }
   else if(mode==='pause'){ if(hit(9)||hit(0))resume(); else if(hit(1))toMenu(); }
   else if(mode==='menu'){ if(up)select(sel-1); if(down)select(sel+1); if((hit(0)||hit(9))&&unlocked(sel)){ Sound.unlock(); startLevel(sel); } }
-  else if(mode==='win'&&$('win').classList.contains('on')){ if(hit(0)||hit(9))$(L.idx===LEVELS.length-1?'btnAgain':'btnNext').click(); else if(hit(1))toMenu(); }
+  else if(mode==='win'&&$('win').classList.contains('on')){ if(hit(0)||hit(9))$(L.idx>=LEVELS.length-2?'btnAgain':'btnNext').click(); else if(hit(1))toMenu(); }
   gpPrev=now;
 }
 window.addEventListener('gamepadconnected',()=>toast('Controller connected: stick to steer, A to jump',3200));

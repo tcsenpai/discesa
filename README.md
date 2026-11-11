@@ -32,6 +32,19 @@ It is signed with a local debug key (`android/debug.keystore`, created on first 
 The Android back button pauses during a run, goes back to the menu from pause, and
 closes the app from the menu.
 
+## Your track (level 6)
+
+Always unlocked. Select it and press **Pick a track** (or click the row again to change
+track later). Two sources:
+
+- **Audio file** (MP3, M4A, OGG, WAV): decoded and analysed in the page. Tempo and beat
+  phase come from the low-band onsets; the tunnel lasts as long as the song (capped at
+  6000 units, about 3-4 minutes), obstacles start on the beat grid, and the track goes
+  through the game's analyser, so the wall reacts to your music. Works offline.
+- **YouTube link**: the official player plays the video in a 200×200 box in the corner
+  (YouTube requires it visible). The page cannot read YouTube audio, so set the BPM by
+  hand; the effects pulse on that tempo. Needs internet, and some videos refuse embedding.
+
 ## Controls
 
 | | Steer | Jump | Pause | Restart |
