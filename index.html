@@ -1,11 +1,10 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Discesa</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;1,600;1,800&display=swap" rel="stylesheet">
+<link href="vendor/fonts/fonts.css" rel="stylesheet">
 <style>
 :root{
   --ink:#04060d; --paper:#eef3ff; --dim:rgba(238,243,255,.64); --line:rgba(238,243,255,.18);
@@ -105,7 +104,7 @@ h1{font-style:italic;font-weight:800;font-size:clamp(64px,min(17vh,23vw),168px);
   <div id="hudTop">
     <div id="hudInfo"><b id="hudName"></b><span id="hudAtt"></span></div>
     <div id="pct">0<small>%</small></div>
-    <button id="btnPause" aria-label="Pausa"><i></i></button>
+    <button id="btnPause" aria-label="Pause"><i></i></button>
   </div>
   <div id="toast" role="status"></div>
 </div>
@@ -113,45 +112,45 @@ h1{font-style:italic;font-weight:800;font-size:clamp(64px,min(17vh,23vw),168px);
 <div id="menu" class="screen on">
   <div class="col">
     <h1>Discesa</h1>
-    <p class="tag">Un globo blu sparato dentro cinque tunnel iperspaziali. Sterza lungo la parete, salta, non toccare niente che brilli di cattivo.</p>
+    <p class="tag">A blue orb fired into five hyperspace tunnels. Steer along the wall, jump, and don&rsquo;t touch anything with a mean glow.</p>
     <ol id="levels"></ol>
-    <button id="btnPlay" class="cta"><span>Gioca</span></button>
+    <button id="btnPlay" class="cta"><span>Play</span></button>
     <div class="row">
       <button id="optSound" class="opt"></button>
       <button id="optQ" class="opt"></button>
     </div>
-    <p class="keys">Sterzi con A/D o le frecce e salti con Spazio: tenendolo premuto rimbalzi a ogni atterraggio. P mette in pausa, R ricomincia. Con un controller: levetta o croce per sterzare, A per saltare, Start per la pausa.</p>
+    <p class="keys">Steer with A/D or the arrow keys, jump with Space: hold it to bounce on every landing. P pauses, R restarts. With a controller: stick or d-pad to steer, A to jump, Start to pause.</p>
   </div>
 </div>
 
 <div id="pause" class="screen sheet">
   <div class="box">
-    <h2>In pausa</h2>
-    <button id="btnResume" class="cta"><span>Riprendi</span></button>
-    <button id="btnRetry" class="ghost">Ricomincia il tunnel</button>
-    <button id="btnQuit" class="ghost">Torna al menu</button>
+    <h2>Paused</h2>
+    <button id="btnResume" class="cta"><span>Resume</span></button>
+    <button id="btnRetry" class="ghost">Restart tunnel</button>
+    <button id="btnQuit" class="ghost">Back to menu</button>
   </div>
 </div>
 
 <div id="win" class="screen sheet">
   <div class="box">
-    <h2>Tunnel chiuso</h2>
+    <h2>Tunnel cleared</h2>
     <p id="winText"></p>
-    <button id="btnNext" class="cta"><span>Tunnel successivo</span></button>
-    <button id="btnAgain" class="ghost">Rigioca questo tunnel</button>
-    <button id="btnMenu" class="ghost">Torna al menu</button>
+    <button id="btnNext" class="cta"><span>Next tunnel</span></button>
+    <button id="btnAgain" class="ghost">Replay this tunnel</button>
+    <button id="btnMenu" class="ghost">Back to menu</button>
   </div>
 </div>
 
 <div id="err"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/CopyShader.js"></script>
+<script src="vendor/LuminosityHighPassShader.js"></script>
+<script src="vendor/EffectComposer.js"></script>
+<script src="vendor/RenderPass.js"></script>
+<script src="vendor/ShaderPass.js"></script>
+<script src="vendor/UnrealBloomPass.js"></script>
 <script>
 'use strict';
 /*LOGIC-START*/
@@ -159,23 +158,23 @@ h1{font-style:italic;font-weight:800;font-size:clamp(64px,min(17vh,23vw),168px);
 const W=10, R=0.55, G=46, JUMP_V=14.5, PAD_V=22;
 const LX=[-3.275,0,3.275], LW=[3.45,3.1,3.45];
 const LEVELS=[
- {name:'Velocità luce', seed:7, len:1000, speed:22, react:[1.15,1.6], hard:.15, slal:.62, dropP:.12, steep:.22, curve:6, tunnels:1,
+ {name:'Lightspeed', seed:7, len:1000, speed:22, react:[1.15,1.6], hard:.15, slal:.62, dropP:.12, steep:.22, curve:6, tunnels:1,
   pats:{spikeLane:3,spikeFull:3,wall:3,gap:2},
   theme:{top:0x01030f,hor:0x0a2f9e,sun:0xd8ecff,neb:0x2a78ff,fog:0x04113d,rail:0x8fd6ff,hazard:0xff2e63,grid:0x2c7dff,key:0xd8ecff,ring:0},
   music:{bpm:128,root:45}},
- {name:'Fossa abissale', seed:21, len:1250, speed:25, react:[.95,1.4], hard:.3, slal:.56, dropP:.16, steep:.26, curve:9, tunnels:1,
+ {name:'Abyssal Trench', seed:21, len:1250, speed:25, react:[.95,1.4], hard:.3, slal:.56, dropP:.16, steep:.26, curve:9, tunnels:1,
   pats:{spikeLane:2,spikeFull:3,wall:2,gap:2,slalom:2,pad:2,laser:2},
   theme:{top:0x010b12,hor:0x075a58,sun:0x8dffd9,neb:0x0a7a8a,fog:0x042a30,rail:0x19e0c8,hazard:0xff4d2e,grid:0x12b8a6,key:0xc8fff0,ring:0},
   music:{bpm:132,root:42}},
- {name:'Fornace', seed:33, len:1500, speed:28, react:[.85,1.25], hard:.45, slal:.52, dropP:.15, steep:.28, curve:11, tunnels:2,
+ {name:'Furnace', seed:33, len:1500, speed:28, react:[.85,1.25], hard:.45, slal:.52, dropP:.15, steep:.28, curve:11, tunnels:2,
   pats:{spikeLane:2,spikeFull:3,wall:2,gap:3,slalom:2,pad:3,laser:2,mover:2,corridor:2,curtain:2},
   theme:{top:0x0d0302,hor:0x8a2a08,sun:0xffb347,neb:0x8a1a0a,fog:0x300d05,rail:0xffa21f,hazard:0xff2bd0,grid:0xff6a1a,key:0xffe0b0,ring:0},
   music:{bpm:136,root:40}},
- {name:'Ultravioletto', seed:48, len:1750, speed:31, react:[.75,1.1], hard:.6, slal:.48, dropP:.15, steep:.3, curve:12, tunnels:2,
+ {name:'Ultraviolet', seed:48, len:1750, speed:31, react:[.75,1.1], hard:.6, slal:.48, dropP:.15, steep:.3, curve:12, tunnels:2,
   pats:{spikeLane:2,spikeFull:3,wall:2,gap:3,slalom:3,pad:3,laser:2,mover:2,corridor:2,curtain:2},
   theme:{top:0x06021a,hor:0x4612a0,sun:0xc77dff,neb:0x7a1fff,fog:0x190a3d,rail:0xb56bff,hazard:0xff6a1f,grid:0x8a3dff,key:0xe6d0ff,ring:0},
   music:{bpm:140,root:43}},
- {name:'Singolarità', seed:59, len:2000, speed:34, react:[.66,.98], hard:.8, slal:.45, dropP:.16, steep:.32, curve:13, tunnels:3,
+ {name:'Singularity', seed:59, len:2000, speed:34, react:[.66,.98], hard:.8, slal:.45, dropP:.16, steep:.32, curve:13, tunnels:3,
   pats:{spikeLane:2,spikeFull:3,wall:2,gap:3,slalom:3,pad:3,laser:2,mover:3,corridor:2,curtain:3},
   theme:{top:0x000000,hor:0x12121a,sun:0xaeb8d8,neb:0x34344a,fog:0x050508,rail:0xdfe6ff,hazard:0xff1744,grid:0x6f7aa8,key:0xdfe6ff,ring:1,railK:.62},
   music:{bpm:146,root:41}}
@@ -310,7 +309,7 @@ function step(L,st,inp,dt){
 // ───────────────────────── Boot guards ─────────────────────────
 const $=id=>document.getElementById(id);
 function fatal(msg){ const e=$('err'); e.textContent=msg; e.style.display='grid'; }
-if(!window.THREE){ fatal('Non riesco a caricare il motore 3D (three.js). Controlla la connessione e ricarica la pagina.'); throw new Error('three missing'); }
+if(!window.THREE){ fatal('Could not load the 3D engine (three.js). Check your connection and reload the page.'); throw new Error('three missing'); }
 
 // ───────────────────────── Save ─────────────────────────
 const SAVE_KEY='discesa.v1';
@@ -404,7 +403,7 @@ const Sound=(()=>{
 const canvas=$('gl');
 let renderer;
 try{ renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance',alpha:false,stencil:false}); }
-catch(e){ fatal('Questo dispositivo non riesce ad avviare WebGL, che serve per la grafica 3D.'); throw e; }
+catch(e){ fatal('This device cannot start WebGL, which the 3D graphics need.'); throw e; }
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.12;
@@ -460,7 +459,7 @@ const texBall=canvasTex(1024,512,(g,w,h)=>{ g.fillStyle='#000'; g.fillRect(0,0,w
 texBall.wrapT=THREE.ClampToEdgeWrapping;
 
 // hyperspace sky
-const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,toneMapped:false,
+const skyMat=new THREE.ShaderMaterial({defines:{SKY_OCT:4},side:THREE.BackSide,depthWrite:false,fog:false,toneMapped:false,
   uniforms:{cTop:{value:new THREE.Color()},cHor:{value:new THREE.Color()},cSun:{value:new THREE.Color()},cNeb:{value:new THREE.Color()},
     sunDir:{value:new THREE.Vector3(0,-.14,-1).normalize()},uT:{value:0},uRing:{value:0},uDim:{value:1}},
   vertexShader:`varying vec3 vD; void main(){ vD=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
@@ -470,7 +469,7 @@ const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:
   float n3(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
     return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
                mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}
-  float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*n3(p);p=p*2.03+vec3(1.7,9.2,3.1);a*=.5;}return s;}
+  float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<SKY_OCT;i++){s+=a*n3(p);p=p*2.03+vec3(1.7,9.2,3.1);a*=.5;}return s;}
   void main(){ vec3 d=normalize(vD);
     float cz=dot(d,sunDir); float rad=acos(clamp(cz,-1.,1.));
     vec3 bx=normalize(cross(vec3(0.,1.,0.),sunDir)), by=cross(sunDir,bx);
@@ -717,7 +716,7 @@ function setupPost(){
     composer=new THREE.EffectComposer(renderer,rt);
     composer.addPass(new THREE.RenderPass(scene,camera));
     bloom=new THREE.UnrealBloomPass(new THREE.Vector2(256,256),.34,.45,.82); composer.addPass(bloom);
-    fin=new THREE.ShaderPass({uniforms:{tDiffuse:{value:null},uZoom:{value:0},uPan:{value:new THREE.Vector2()},uRoll:{value:0},uCA:{value:.006},uFlash:{value:0},uT:{value:0},
+    fin=new THREE.ShaderPass({defines:{NB:18,NR:10,NF:12},uniforms:{tDiffuse:{value:null},uZoom:{value:0},uPan:{value:new THREE.Vector2()},uRoll:{value:0},uCA:{value:.006},uFlash:{value:0},uT:{value:0},
         uRays:{value:0},uFlare:{value:1},uAsp:{value:1},uCen:{value:new THREE.Vector2(.5,.5)},uBall:{value:new THREE.Vector2(-9,-9)}},
       vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
       fragmentShader:`uniform sampler2D tDiffuse; uniform float uZoom,uRoll,uCA,uFlash,uT,uRays,uFlare,uAsp; uniform vec2 uCen,uBall,uPan; varying vec2 vUv;
@@ -728,9 +727,9 @@ function setupPost(){
           vec2 vel=fc*uZoom*(.12+2.3*fl)+uPan+vec2(-d.y/uAsp,d.x*uAsp)*uRoll;
           vel*=mix(.1,1.,smoothstep(.03,.24,length((uv-uBall)*vec2(uAsp,1.))));
           float jt=hash(vUv*777.+uT); vec3 c=vec3(0.); float ws=0.;
-          for(int i=0;i<18;i++){ float t=(float(i)+jt)/18.-.5; float w=1.-abs(t)*.7; c+=texture2D(tDiffuse,uv-vel*t).rgb*w; ws+=w; } c/=ws;
-          if(uRays>0.){ vec2 dr=uCen-uv; vec3 ry=vec3(0.); for(int i=0;i<10;i++){ float t=(float(i)+jt)/10.; ry+=max(texture2D(tDiffuse,uv+dr*t*.9).rgb-.7,0.)*(1.-t*.6); } c+=ry*.1*uRays; }
-          if(uFlare>0.){ vec3 fr=vec3(0.); for(int i=0;i<12;i++){ float t=(float(i)+jt)/12.*2.-1.; fr+=max(texture2D(tDiffuse,uv+vec2(t*.34,0.)).rgb-.8,0.)*(1.-abs(t)); } c+=fr*vec3(.3,.55,1.)*.06*uFlare; }
+          for(int i=0;i<NB;i++){ float t=(float(i)+jt)/float(NB)-.5; float w=1.-abs(t)*.7; c+=texture2D(tDiffuse,uv-vel*t).rgb*w; ws+=w; } c/=ws;
+          if(NR>0&&uRays>0.){ vec2 dr=uCen-uv; vec3 ry=vec3(0.); for(int i=0;i<NR;i++){ float t=(float(i)+jt)/float(NR); ry+=max(texture2D(tDiffuse,uv+dr*t*.9).rgb-.7,0.)*(1.-t*.6); } c+=ry*.1*uRays; }
+          if(NF>0&&uFlare>0.){ vec3 fr=vec3(0.); for(int i=0;i<NF;i++){ float t=(float(i)+jt)/float(NF)*2.-1.; fr+=max(texture2D(tDiffuse,uv+vec2(t*.34,0.)).rgb-.8,0.)*(1.-abs(t)); } c+=fr*vec3(.3,.55,1.)*.06*uFlare; }
           vec2 o=d*r*uCA; c.r=mix(c.r,texture2D(tDiffuse,uv-o).r,.6); c.b=mix(c.b,texture2D(tDiffuse,uv+o).b,.6);
           c*=1.-smoothstep(.36,.98,r)*.55;
           c=mix(c,vec3(.7,.84,1.),uFlash);
@@ -745,7 +744,10 @@ setupPost();
 
 function applyQuality(){
   const q=save.q, dpr=window.devicePixelRatio||1;
-  renderer.setPixelRatio(q==='high'?Math.min(dpr,2):q==='med'?Math.min(dpr,1.5):1);
+  // phones: screens are dense but GPUs are small, so cap the pixel ratio harder
+  renderer.setPixelRatio(isTouch?(q==='high'?Math.min(dpr,1.5):q==='med'?1:.75):(q==='high'?Math.min(dpr,2):q==='med'?Math.min(dpr,1.5):1));
+  if(fin){ const d=fin.material.defines, hi=q==='high'; d.NB=hi?18:8; d.NR=hi?10:0; d.NF=hi?12:0; fin.material.needsUpdate=true; }
+  skyMat.defines.SKY_OCT=q==='high'?4:q==='med'?3:2; skyMat.needsUpdate=true;
   sun.castShadow=false; const ms=q==='high'?2048:1024;
   if(sun.shadow.mapSize.x!==ms){ sun.shadow.mapSize.set(ms,ms); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; } }
   motes.visible=q!=='low';
@@ -774,17 +776,17 @@ function startLevel(i){
   if(curIdx!==i)buildLevel(i);
   save.last=i; $('hudName').textContent=LEVELS[i].name; show(null); Sound.setFull(true); perfN=0; perfSum=0;
   newAttempt();
-  if(save.hint<2){ save.hint++; toast(isTouch?'Trascina per sterzare, tocca per saltare':'A/D o frecce per sterzare, Spazio per saltare',4200); }
+  if(save.hint<2){ save.hint++; toast(isTouch?'Drag to steer, tap to jump':'A/D or arrows to steer, Space to jump',4200); }
 }
 function newAttempt(){
-  st=newState(L); ballWorld(); save.att[L.idx]++; persist(); $('hudAtt').textContent='Tentativo '+save.att[L.idx];
+  st=newState(L); ballWorld(); save.att[L.idx]++; persist(); $('hudAtt').textContent='Attempt '+save.att[L.idx];
   mode='play'; ballGroup.visible=true; trail.visible=true; trailReset(); camSnap=true; if(!reduceMotion){ fov=camera.fov=106; camera.updateProjectionMatrix(); flash=Math.max(flash,.3); } jumpBuf=0; inp.target=null; steerId=null; setPct(0);
   for(const m of shards)m.visible=false; ball.quaternion.identity(); Sound.open(1);
 }
 function die(){
   rumble(260,.9,.6); mode='dead'; deadT=.9; ballGroup.visible=false; trail.visible=false; Sound.fx('die'); Sound.open(.5); if(!reduceMotion){ shake=.9; flash=.55; }
   const p=Math.min(99,Math.floor(st.s/L.len*100));
-  if(p>save.best[L.idx]){ save.best[L.idx]=p; persist(); if(p>=5)toast('Nuovo record: '+p+'%',1500); }
+  if(p>save.best[L.idx]){ save.best[L.idx]=p; persist(); if(p>=5)toast('New best: '+p+'%',1500); }
   burst(bpos.x,bpos.y,bpos.z,110,13,st.v*.45,.35,.7,2.2,1.1); burst(bpos.x,bpos.y,bpos.z,40,6,st.v*.3,2,2,2.4,.6);
   for(const m of shards){ m.visible=true; m.position.copy(bpos); m.userData.v.set((Math.random()-.5)*14,3+Math.random()*10,-st.v*(.3+Math.random()*.5)); m.userData.w.set(Math.random()*12,Math.random()*12,Math.random()*12); }
 }
@@ -792,7 +794,7 @@ function win(){
   mode='win'; winT=0; const first=!save.done[L.idx]; save.done[L.idx]=1; save.best[L.idx]=100; persist(); setPct(100);
   Sound.fx('win'); flash=.9; inp.target=null;
   const n=save.att[L.idx], last=L.idx===LEVELS.length-1;
-  $('winText').innerHTML='<b>'+LEVELS[L.idx].name+'</b> chiuso al tentativo '+n+'.'+(last?' Era l’ultima: hai visto il fondo.':(first?' Il tunnel successivo è sbloccato.':''));
+  $('winText').innerHTML='<b>'+LEVELS[L.idx].name+'</b> cleared on attempt '+n+'.'+(last?' That was the last one: you have seen the bottom.':(first?' The next tunnel is unlocked.':''));
   $('btnNext').style.display=last?'none':'';
   setTimeout(()=>{ if(mode==='win'){ show('win'); $(last?'btnAgain':'btnNext').focus(); } },1700);
 }
@@ -807,12 +809,12 @@ function renderMenu(){
     b.className=ok?'':'locked'; if(i===sel)b.setAttribute('aria-current','true');
     const n=document.createElement('span'); n.className='n'; n.textContent=i+1;
     const t=document.createElement('span'); t.textContent=lv.name;
-    const r=document.createElement('span'); r.className='b'; r.textContent=!ok?'bloccato':save.done[i]?'chiuso':save.best[i]?save.best[i]+'%':'';
+    const r=document.createElement('span'); r.className='b'; r.textContent=!ok?'locked':save.done[i]?'cleared':save.best[i]?save.best[i]+'%':'';
     b.append(n,t,r); b.addEventListener('click',()=>{ Sound.unlock(); Sound.fx('ui'); select(i); }); li.append(b); ol.append(li); });
   const ok=unlocked(sel), bp=$('btnPlay'); bp.disabled=!ok;
-  bp.firstElementChild.textContent=ok?'Gioca':'Chiudi prima il tunnel '+sel;
-  $('optSound').innerHTML='Audio <b>'+(save.mute?'spento':'acceso')+'</b>';
-  $('optQ').innerHTML='Grafica <b>'+({high:'alta',med:'media',low:'leggera'})[save.q]+'</b>';
+  bp.firstElementChild.textContent=ok?'Play':'Clear tunnel '+sel+' first';
+  $('optSound').innerHTML='Sound <b>'+(save.mute?'off':'on')+'</b>';
+  $('optQ').innerHTML='Graphics <b>'+({high:'high',med:'medium',low:'low'})[save.q]+'</b>';
 }
 function select(i){ sel=clamp(i,0,LEVELS.length-1); if(curIdx!==sel){ buildLevel(sel); menuS=0; } renderMenu(); }
 $('btnPlay').addEventListener('click',()=>{ Sound.unlock(); if(unlocked(sel)){ Sound.fx('ui'); startLevel(sel); } });
@@ -863,6 +865,8 @@ function ptrEnd(e){
 }
 canvas.addEventListener('pointerup',ptrEnd); canvas.addEventListener('pointercancel',ptrEnd);
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+// Android back button (called by the WebView wrapper): returns 'exit' when the app should close
+function onBack(){ if(mode==='menu')return 'exit'; if(mode==='play')pause(); else if(mode!=='dead')toMenu(); return ''; }
 document.addEventListener('visibilitychange',()=>{ if(document.hidden){ pause(); Sound.suspend(); } else Sound.resume(); });
 
 // ───────────────────────── Frame ─────────────────────────
@@ -926,7 +930,7 @@ function frame(now){
       updateCamera(dt);
       // auto quality
       if(mode==='play'&&!perfDone){ perfN++; if(perfN>40)perfSum+=dt; if(perfN===220){ const avg=perfSum/180;
-          if(avg>.027&&save.q!=='low'){ save.q=save.q==='high'?'med':'low'; persist(); applyQuality(); toast('Grafica alleggerita per tenere il ritmo'); perfN=0; perfSum=0; } else perfDone=true; } }
+          if(avg>.021&&save.q!=='low'){ save.q=save.q==='high'?'med':'low'; persist(); applyQuality(); toast('Graphics lowered to keep the frame rate up'); perfN=0; perfSum=0; } else perfDone=true; } }
     }
   }
   if(mode==='dead'){
@@ -989,7 +993,7 @@ function pollPad(){
   else if(mode==='win'&&$('win').classList.contains('on')){ if(hit(0)||hit(9))$(L.idx===LEVELS.length-1?'btnAgain':'btnNext').click(); else if(hit(1))toMenu(); }
   gpPrev=now;
 }
-window.addEventListener('gamepadconnected',()=>toast('Controller collegato: levetta per sterzare, A per saltare',3200));
+window.addEventListener('gamepadconnected',()=>toast('Controller connected: stick to steer, A to jump',3200));
 
 // ───────────────────────── Go ─────────────────────────
 applyQuality();

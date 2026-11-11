@@ -1,6 +1,6 @@
-// Bot che gioca tutti i tunnel con la stessa fisica del gioco (estratta da index.html
-// tra i marcatori LOGIC-START / LOGIC-END). Serve a verificare che ogni livello generato sia completabile.
-// Uso: bun test/bot.js   (oppure: node test/bot.js)
+// Bot that plays every tunnel with the game's own physics (extracted from index.html
+// between the LOGIC-START / LOGIC-END markers). Checks that every generated level can be completed.
+// Usage: bun test/bot.js   (or: node test/bot.js)
 const fs=require('fs');
 const src=fs.readFileSync(require('path').join(__dirname,'..','index.html'),'utf8');
 const logic=src.split('/*LOGIC-START*/')[1].split('/*LOGIC-END*/')[0];
@@ -39,6 +39,6 @@ function run(idx,verbose){
 }
 let failed=0;
 for(let i=0;i<LEVELS.length;i++){ const r=run(i,true);
-  console.log((r.ok?'ok   ':'FAIL ')+(i+1)+' '+LEVELS[i].name+(r.ok?' — chiuso in '+r.t.toFixed(1)+'s':' — morto al '+(r.s/r.L.len*100).toFixed(0)+'%'));
+  console.log((r.ok?'ok   ':'FAIL ')+(i+1)+' '+LEVELS[i].name+(r.ok?' — cleared in '+r.t.toFixed(1)+'s':' — died at '+(r.s/r.L.len*100).toFixed(0)+'%'));
   if(!r.ok)failed++; }
 process.exit(failed?1:0);

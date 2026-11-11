@@ -1,11 +1,12 @@
 {
   "name": "discesa",
   "version": "1.0.0",
-  "description": "Runner 3D in un tunnel iperspaziale: un globo blu, cinque tunnel, WebGL in un singolo file HTML.",
+  "description": "3D runner in a hyperspace tunnel: a blue orb, five tunnels, WebGL in a single HTML file.",
   "private": true,
   "license": "MIT",
   "scripts": {
     "start": "bunx serve .",
-    "test": "bun test/bot.js"
+    "test": "bun test/bot.js",
+    "android": "android/build.sh"
   }
 }

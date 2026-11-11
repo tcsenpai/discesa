@@ -1,80 +1,92 @@
 # Discesa
 
-Runner 3D in terza persona: un globo blu sparato dentro cinque tunnel iperspaziali.
-Sterzi lungo la parete del tubo, salti, eviti tutto quello che brilla di cattivo.
-Muori, riparti all'istante.
+Third-person 3D runner: a blue orb fired into five hyperspace tunnels.
+Steer along the tube wall, jump, dodge everything with a mean glow.
+Die, restart instantly.
 
-Tutto il gioco sta in `index.html`: nessuna build, nessuna dipendenza da installare.
+The whole game lives in `index.html`, with three.js and the font vendored in `vendor/`:
+no build, no install, works offline.
 
-## Avvio
+## Run
 
 ```sh
-bun start          # serve la cartella su http://localhost:3000
+bun start          # serves the folder on http://localhost:3000
 ```
 
-Va bene qualsiasi server statico (`python3 -m http.server`, Caddy, nginx). Aprire il file
-direttamente con `file://` di solito funziona, ma alcuni browser limitano audio e gamepad.
+Any static server works (`python3 -m http.server`, Caddy, nginx). Opening the file
+directly via `file://` usually works too, but some browsers restrict audio and gamepads.
 
-Serve una connessione al primo avvio: three.js r128 e il font vengono caricati da CDN
-(jsDelivr e Google Fonts). Per l'uso offline o self-hosted vedi sotto.
+## Android
 
-## Comandi
+```sh
+bun run android    # builds android/discesa.apk
+adb install -r android/discesa.apk
+```
 
-| | Sterzare | Saltare | Pausa | Ricominciare |
+The APK is a fullscreen WebView that loads the game from its own assets, so it needs no
+network. The build uses the SDK tools directly (aapt2, javac, d8, apksigner), no Gradle.
+Requirements: Android SDK with platform 33 and build-tools 33.0.0 (`ANDROID_HOME`,
+default `~/Android/Sdk`) and a JDK 11+ (`JAVA_HOME`, or mise's `java@temurin-17`).
+It is signed with a local debug key (`android/debug.keystore`, created on first build).
+
+The Android back button pauses during a run, goes back to the menu from pause, and
+closes the app from the menu.
+
+## Controls
+
+| | Steer | Jump | Pause | Restart |
 |---|---|---|---|---|
-| Tastiera | A/D o frecce | Spazio, W, freccia su | P, Esc | R |
-| Touch | trascina | tocco breve, swipe in su, secondo dito | pulsante in alto | dal menu di pausa |
-| Controller | levetta sinistra o croce | A, X, RB, RT | Start | Select |
+| Keyboard | A/D or arrows | Space, W, up arrow | P, Esc | R |
+| Touch | drag | short tap, swipe up, second finger | top button | from the pause menu |
+| Controller | left stick or d-pad | A, X, RB, RT | Start | Select |
 
-Tenendo premuto il salto si rimbalza a ogni atterraggio.
+Holding jump bounces on every landing.
 
-## Com'è fatto
+## How it's built
 
-- **Livelli**: generati proceduralmente da un seed fisso per tunnel, quindi identici a ogni
-  partita. Profilo di pendenza, curve, dossi, e una sequenza di pattern (spuntoni, muri,
-  slalom, laser, blocchi mobili, corridoi, buchi, trampolini).
-- **Fisica**: logica pura, senza rendering, tra i marcatori `LOGIC-START` / `LOGIC-END`
-  in `index.html`. Lavora in coordinate (distanza, arco laterale, altezza); il rendering
-  le avvolge sulla parete interna del tubo.
-- **Grafica**: three.js con materiali PBR, environment map generata dal cielo, parete del
-  tunnel e pianeti in shader procedurali, bloom, motion blur per-pixel, raggi di luce,
-  lente anamorfica, tone mapping ACES.
-- **Audio**: nessun file. La colonna sonora è sintetizzata dal vivo con WebAudio
-  (sequencer a sedicesimi), e lo spettro pilota gli effetti sulla parete del tunnel.
-- **Salvataggio**: `localStorage`, chiave `discesa.v1` (record, tunnel sbloccati,
-  tentativi, audio, qualità grafica).
+- **Levels**: generated procedurally from a fixed seed per tunnel, so they are identical
+  every run. Slope profile, curves, bumps, and a sequence of patterns (spikes, walls,
+  slaloms, lasers, moving blocks, corridors, gaps, jump pads).
+- **Physics**: pure logic, no rendering, between the `LOGIC-START` / `LOGIC-END` markers
+  in `index.html`. It works in (distance, lateral arc, height) coordinates; rendering
+  wraps them onto the inner wall of the tube.
+- **Graphics**: three.js with PBR materials, an environment map generated from the sky,
+  procedural shaders for the tunnel wall and planets, bloom, per-pixel motion blur,
+  light rays, anamorphic flare, ACES tone mapping.
+- **Audio**: no files. The soundtrack is synthesized live with WebAudio (sixteenth-note
+  sequencer), and its spectrum drives the effects on the tunnel wall.
+- **Saves**: `localStorage`, key `discesa.v1` (best scores, unlocked tunnels, attempts,
+  audio, graphics quality).
+
+## Graphics quality
+
+Three tiers, switchable from the menu; the game also steps down by itself if a run
+drops under ~48 fps.
+
+| Tier | Pixel ratio (phone / desktop) | Post-processing |
+|---|---|---|
+| high | 1.5 / 2 | 18-tap motion blur, light rays, flare, 4-octave sky |
+| medium (phone default) | 1 / 1.5 | 8-tap motion blur, 3-octave sky |
+| low | 0.75 / 1 | none, 2-octave sky |
 
 ## Test
 
 ```sh
-bun test           # oppure: node test/bot.js
+bun test           # or: node test/bot.js
 ```
 
-Un bot gioca tutti e cinque i tunnel con la stessa fisica del gioco e fallisce se un
-livello non è completabile. Da rilanciare dopo ogni modifica a generazione o fisica.
-Non copre rendering, audio né input.
+A bot plays all five tunnels with the game's own physics and fails if a level cannot be
+completed. Rerun after any change to generation or physics. It does not cover
+rendering, audio or input.
 
-## Self-hosting senza CDN
+## Known limits
 
-In `index.html` ci sono sette `<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/...">`.
-Per servire tutto in locale:
+- Steering covers the lower arc of the tube, not the full circle.
+- Tunnels 4 and 5 have few jump pads.
+- Controller support has not been tested on real hardware.
+- Phone performance depends heavily on the GPU; the quality tier drops automatically,
+  and can be forced from the menu.
 
-```sh
-bun add three@0.128.0
-```
+## License
 
-poi copia i file corrispondenti da `node_modules/three/` (`build/three.min.js` e i sei
-sotto `examples/js/`) in una cartella `vendor/` e aggiorna i percorsi. Il font ha già un
-fallback di sistema: basta togliere il `<link>` a Google Fonts.
-
-## Limiti noti
-
-- La sterzata copre l'arco basso del tubo, non il giro completo.
-- I tunnel 4 e 5 hanno pochi trampolini.
-- Il supporto controller non è stato provato su hardware reale.
-- Le prestazioni su telefono dipendono molto dalla GPU; se il frame rate cala la qualità
-  scende da sola, e si può forzare dal menu.
-
-## Licenza
-
-MIT. three.js è distribuito con la sua licenza MIT.
+MIT. three.js is distributed under its own MIT license.
