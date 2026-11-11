@@ -20,6 +20,10 @@ html,body{height:100%;overflow:hidden;background:var(--ink);color:var(--paper);f
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 button:focus-visible{outline:2px solid var(--paper);outline-offset:3px}
+/* sheets: the focused button is the controller's selection, so always show it */
+.sheet .ghost:focus{color:var(--paper);border-bottom:2px solid var(--accent);outline:0}
+.sheet .ghost:focus::before{content:"\25B8 ";color:var(--accent)}
+.sheet .cta:focus{outline:2px solid var(--accent);outline-offset:4px;box-shadow:0 0 22px var(--accent)}
 
 /* HUD */
 #hud{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s}
@@ -1098,6 +1102,14 @@ function render(){
 // ───────────────────────── Controller ─────────────────────────
 let gpPrev=[], gpSteer=0, gpJump=false, gpY=0;
 function rumble(ms,strong,weak){ try{ for(const p of navigator.getGamepads()) if(p&&p.vibrationActuator)p.vibrationActuator.playEffect('dual-rumble',{duration:ms,strongMagnitude:strong,weakMagnitude:weak}); }catch(e){} }
+// sheets (pause, win, your track): up/down moves the highlight, A presses the highlighted button
+function padNav(id,up,down,press){
+  const bs=[...$(id).querySelectorAll('button')].filter(b=>b.offsetParent&&!b.disabled); if(!bs.length)return;
+  let i=bs.indexOf(document.activeElement);
+  if(i<0){ bs[0].focus(); return; }
+  if(up||down){ bs[(i+(down?1:bs.length-1))%bs.length].focus(); Sound.fx('ui'); }
+  else if(press)bs[i].click();
+}
 function pollPad(){
   let gp=null; try{ const ps=navigator.getGamepads?navigator.getGamepads():[]; for(const p of ps) if(p&&p.connected){ gp=p; break; } }catch(e){}
   if(!gp){ gpSteer=0; gpJump=false; return; }
@@ -1106,9 +1118,10 @@ function pollPad(){
   const jNow=now[0]||now[2]||now[5]||now[7], jHit=hit(0)||hit(2)||hit(5)||hit(7); gpJump=jNow;
   const ay=gp.axes[1]||0, yy=ay<-.6?-1:ay>.6?1:0, up=hit(12)||(yy===-1&&gpY!==-1), down=hit(13)||(yy===1&&gpY!==1); gpY=yy;
   if(mode==='play'){ if(jHit)jumpBuf=.16; if(hit(9))pause(); else if(hit(8))newAttempt(); }
-  else if(mode==='pause'){ if(hit(9)||hit(0))resume(); else if(hit(1))toMenu(); }
+  else if(mode==='pause'){ if(hit(9)||hit(1))resume(); else padNav('pause',up,down,hit(0)); }
+  else if(mode==='menu'&&$('custom').classList.contains('on')){ if(hit(1))toMenu(); else padNav('custom',up,down,hit(0)); }
   else if(mode==='menu'){ if(up)select(sel-1); if(down)select(sel+1); if((hit(0)||hit(9))&&unlocked(sel)){ Sound.unlock(); startLevel(sel); } }
-  else if(mode==='win'&&$('win').classList.contains('on')){ if(hit(0)||hit(9))$(L.idx>=LEVELS.length-2?'btnAgain':'btnNext').click(); else if(hit(1))toMenu(); }
+  else if(mode==='win'&&$('win').classList.contains('on')){ if(hit(1))toMenu(); else padNav('win',up,down,hit(0)||hit(9)); }
   gpPrev=now;
 }
 window.addEventListener('gamepadconnected',()=>toast('Controller connected: stick to steer, A to jump',3200));
